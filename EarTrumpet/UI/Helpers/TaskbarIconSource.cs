@@ -78,11 +78,7 @@ namespace EarTrumpet.UI.Helpers
                 // Subscribe to MediaSessionService events
                 MediaSessionService.Instance.MediaPlaybackChanged += OnMediaPlaybackChanged;
 
-                // Check initial state (might already be playing)
-                if (MediaSessionService.Instance.IsMediaPlaying)
-                {
-                    StartAnimation();
-                }
+                // The constructor reconciles playback after reading the default output state.
 
                 Trace.WriteLine($"TaskbarIconSource: Vector animation ready");
             }
@@ -101,7 +97,7 @@ namespace EarTrumpet.UI.Helpers
                     // Legacy icon doesn't animate — stop animation and force refresh
                     StopAnimation();
                 }
-                else if (MediaSessionService.Instance.IsMediaPlaying && _volumeIconGenerator != null)
+                else if (MediaSessionService.Instance.IsMediaPlaying && CanAnimate)
                 {
                     // Switched back to modern icon while music is playing — restart animation
                     StartAnimation();
@@ -132,7 +128,7 @@ namespace EarTrumpet.UI.Helpers
 
         private void StartAnimation()
         {
-            if (_isAnimating || _volumeIconGenerator == null || _settings.UseLegacyIcon) return;
+            if (_isAnimating || !CanAnimate) return;
 
             _isAnimating = true;
             _currentFrame = 0;
@@ -141,6 +137,12 @@ namespace EarTrumpet.UI.Helpers
             _animationTimer?.Start();
             Trace.WriteLine("TaskbarIconSource: Animation started");
         }
+
+        private bool CanAnimate =>
+            _volumeIconGenerator != null &&
+            !_settings.UseLegacyIcon &&
+            _kind != IconKind.Muted &&
+            _kind != IconKind.NoDevice;
 
         private void StopAnimation()
         {
@@ -248,6 +250,15 @@ namespace EarTrumpet.UI.Helpers
         private void OnTrayPropertyChanged()
         {
             _kind = IconKindFromDeviceCollection(_collection);
+            if (_isAnimating && !CanAnimate)
+            {
+                StopAnimation(); // Restore the muted/no-device icon immediately.
+                return;
+            }
+            if (!_isAnimating && CanAnimate && MediaSessionService.Instance.IsMediaPlaying)
+            {
+                StartAnimation();
+            }
             if (!_isAnimating)
             {
                 CheckForUpdate();

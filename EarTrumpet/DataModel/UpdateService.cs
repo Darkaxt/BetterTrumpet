@@ -33,7 +33,7 @@ namespace EarTrumpet.DataModel
     /// </summary>
     public class UpdateService : INotifyPropertyChanged
     {
-        private const string GitHubApiUrl = "https://api.github.com/repos/xammen/BetterTrumpet/releases/latest";
+        private const string GitHubApiUrl = "https://api.github.com/repos/Darkaxt/BetterTrumpet/releases/latest";
         private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(6);
         private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(10);
 

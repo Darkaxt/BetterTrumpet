@@ -4,6 +4,11 @@
 
 <h1 align="center">BetterTrumpet</h1>
 
+This fork retains upstream 3.4.0 and fixes muted playback replacing the tray's
+crossed-out icon. See [fork release notes](docs/RELEASE-3.4.1.md).
+Fork packages and updates are published in
+[Darkaxt/BetterTrumpet releases](https://github.com/Darkaxt/BetterTrumpet/releases).
+
 <p align="center">
   <a href="https://bettertrumpet.hiii.boo">
     <img src="https://img.shields.io/badge/official%20site-bettertrumpet.hiii.boo-trumpet?labelColor=0a0a0a&color=4a9&style=for-the-badge" alt="Official Site"/>

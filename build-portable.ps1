@@ -1,7 +1,16 @@
-$src = 'Build\Release'
-$dst = 'dist\BetterTrumpet-3.4.0-portable'
-Remove-Item $dst -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force -Path $dst | Out-Null
+param(
+    [string]$OutputDirectory = (Join-Path $PSScriptRoot 'dist'),
+    [string]$StagingDirectory = (Join-Path $PSScriptRoot 'dist\BetterTrumpet-3.4.1-portable')
+)
+$ErrorActionPreference = 'Stop'
+$src = Join-Path $PSScriptRoot 'Build\Release'
+$dst = $StagingDirectory
+$zipPath = Join-Path $OutputDirectory 'BetterTrumpet-3.4.1-portable.zip'
+if ((Test-Path -LiteralPath $dst) -or (Test-Path -LiteralPath $zipPath)) {
+    throw 'Output exists; use fresh paths or review existing generated output for cleanup.'
+}
+New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
+New-Item -ItemType Directory -Path $dst | Out-Null
 
 # Copy main files (exclude pdb, xml doc files, Windows.winmd)
 Get-ChildItem $src -File | Where-Object { $_.Extension -notin '.pdb','.xml' -and $_.Name -ne 'Windows.winmd' } | Copy-Item -Destination $dst
@@ -22,10 +31,10 @@ foreach ($folder in @('SettingsWeb', 'AnnouncementsWeb', 'runtimes')) {
 
 # Create portable marker file
 Set-Content (Join-Path $dst 'portable.marker') 'BetterTrumpet Portable Mode'
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LICENSE') -Destination $dst
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs\RELEASE-3.4.1.md') -Destination $dst
 
 # Zip it
-$zipPath = 'dist\BetterTrumpet-3.4.0-portable.zip'
-Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path "$dst\*" -DestinationPath $zipPath -CompressionLevel Optimal
 
 $size = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)

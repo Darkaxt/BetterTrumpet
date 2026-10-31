@@ -103,6 +103,7 @@ namespace EarTrumpet.UI.ViewModels
             if (e.PropertyName == DefaultDeviceChangedProperty ||
                 e.PropertyName == nameof(Default.Volume) ||
                 e.PropertyName == nameof(Default.IsMuted) ||
+                e.PropertyName == nameof(Default.IconKind) ||
                 e.PropertyName == nameof(Default.DisplayName))
             {
                 TrayPropertyChanged.Invoke();
