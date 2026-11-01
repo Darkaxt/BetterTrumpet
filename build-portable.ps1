@@ -1,11 +1,11 @@
 param(
     [string]$OutputDirectory = (Join-Path $PSScriptRoot 'dist'),
-    [string]$StagingDirectory = (Join-Path $PSScriptRoot 'dist\BetterTrumpet-3.4.1-portable')
+    [string]$StagingDirectory = (Join-Path $PSScriptRoot 'dist\BetterTrumpet-3.4.2-portable')
 )
 $ErrorActionPreference = 'Stop'
 $src = Join-Path $PSScriptRoot 'Build\Release'
 $dst = $StagingDirectory
-$zipPath = Join-Path $OutputDirectory 'BetterTrumpet-3.4.1-portable.zip'
+$zipPath = Join-Path $OutputDirectory 'BetterTrumpet-3.4.2-portable.zip'
 if ((Test-Path -LiteralPath $dst) -or (Test-Path -LiteralPath $zipPath)) {
     throw 'Output exists; use fresh paths or review existing generated output for cleanup.'
 }
@@ -32,7 +32,7 @@ foreach ($folder in @('SettingsWeb', 'AnnouncementsWeb', 'runtimes')) {
 # Create portable marker file
 Set-Content (Join-Path $dst 'portable.marker') 'BetterTrumpet Portable Mode'
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'LICENSE') -Destination $dst
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs\RELEASE-3.4.1.md') -Destination $dst
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'docs\RELEASE-3.4.2.md') -Destination $dst
 
 # Zip it
 Compress-Archive -Path "$dst\*" -DestinationPath $zipPath -CompressionLevel Optimal

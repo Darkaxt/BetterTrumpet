@@ -1,5 +1,6 @@
 using EarTrumpet;
 using EarTrumpet.DataModel;
+using EarTrumpet.DataModel.WindowsAudio;
 using EarTrumpet.UI.Helpers;
 using EarTrumpet.UI.ViewModels;
 using System;
@@ -10,9 +11,20 @@ using System.Windows.Threading;
 internal static class Program
 {
     private static int _failures;
+    private static AudioEndpointFormFactor _formFactor;
 
     [STAThread]
     private static int Main()
+    {
+        foreach (var formFactor in new[] { AudioEndpointFormFactor.Speakers, AudioEndpointFormFactor.Headphones, AudioEndpointFormFactor.DigitalAudioDisplayDevice })
+        {
+            _formFactor = formFactor;
+            RunCases();
+        }
+        return _failures == 0 ? 0 : 1;
+    }
+
+    private static void RunCases()
     {
         Run("startup muted during playback", muted: true, playing: true, test: (source, devices, settings) =>
         {
@@ -51,7 +63,7 @@ internal static class Program
         });
         Run("default device switches and disconnect", muted: false, playing: true, test: (source, devices, settings) =>
         {
-            devices.Default = new DeviceViewModel { IconKind = DeviceViewModel.DeviceIconKind.Mute };
+            devices.Default = new DeviceViewModel { IconKind = DeviceViewModel.DeviceIconKind.Mute, FormFactor = _formFactor };
             devices.Notify();
             ExpectStatic(source, "muted new default");
             ExpectMutedIcon(source);
@@ -59,7 +71,7 @@ internal static class Program
             devices.Notify();
             MediaSessionService.Instance.SetPlaying(true);
             ExpectStatic(source, "no output");
-            devices.Default = new DeviceViewModel { IconKind = DeviceViewModel.DeviceIconKind.Bar2 };
+            devices.Default = new DeviceViewModel { IconKind = DeviceViewModel.DeviceIconKind.Bar2, FormFactor = _formFactor };
             devices.Notify();
             ExpectAnimating(source, "unmuted new default");
         });
@@ -80,7 +92,6 @@ internal static class Program
             MediaSessionService.Instance.SetPlaying(false);
             ExpectStatic(source, "paused");
         });
-        return _failures == 0 ? 0 : 1;
     }
 
     private static void Run(string name, bool muted, bool playing,
@@ -90,12 +101,12 @@ internal static class Program
         MediaSessionService.Instance.SetPlaying(playing);
         var devices = new DeviceCollectionViewModel
         {
-            Default = new DeviceViewModel { IconKind = muted ? DeviceViewModel.DeviceIconKind.Mute : DeviceViewModel.DeviceIconKind.Bar2 }
+            Default = new DeviceViewModel { IconKind = muted ? DeviceViewModel.DeviceIconKind.Mute : DeviceViewModel.DeviceIconKind.Bar2, FormFactor = _formFactor }
         };
         var settings = new AppSettings();
         var source = new TaskbarIconSource(devices, settings);
-        try { test(source, devices, settings); Console.WriteLine("PASS " + name); }
-        catch (Exception ex) { _failures++; Console.WriteLine("FAIL " + name + ": " + ex.Message); }
+        try { test(source, devices, settings); Console.WriteLine("PASS " + _formFactor + ": " + name); }
+        catch (Exception ex) { _failures++; Console.WriteLine("FAIL " + _formFactor + ": " + name + ": " + ex.Message); }
         finally
         {
             MediaSessionService.Instance.SetPlaying(false);
@@ -122,7 +133,9 @@ internal static class Program
     }
     private static void ExpectMutedIcon(TaskbarIconSource source)
     {
-        using var expected = Field<VolumeIconGenerator>(source, "_volumeIconGenerator").GetMutedIcon(false);
+        var glyph = Field<TrayDeviceGlyph>(source, "_glyph");
+        var generator = Field<VolumeIconGenerator>(source, "_volumeIconGenerator");
+        using var expected = glyph == TrayDeviceGlyph.Speaker ? generator.GetMutedIcon(false) : generator.GetDeviceIcon(glyph, true, false);
         using var left = source.Current.ToBitmap();
         using var right = expected.ToBitmap();
         for (int y = 0; y < left.Height; y++)

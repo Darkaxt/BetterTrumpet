@@ -376,6 +376,9 @@ namespace EarTrumpet.UI.Views
                 case "useLegacyIcon":
                     App.Settings.UseLegacyIcon = valueElement.GetBoolean();
                     break;
+                case "trayIconShowsDeviceType":
+                    App.Settings.TrayIconShowsDeviceType = valueElement.GetBoolean();
+                    break;
                 case "showAppTooltips":
                     App.Settings.ShowAppTooltips = valueElement.GetBoolean();
                     break;
@@ -676,15 +679,7 @@ namespace EarTrumpet.UI.Views
                     privacy.ImportSettingsCommand.Execute(null);
                     break;
                 case "openUrl":
-                    var url = GetString(message, "url");
-                    if (!string.IsNullOrWhiteSpace(url))
-                    {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = url,
-                            UseShellExecute = true
-                        });
-                    }
+                    EarTrumpet.Interop.Helpers.ProcessHelper.OpenWebLinkNoThrow(GetString(message, "url"));
                     break;
                 default:
                     return;
@@ -741,6 +736,8 @@ namespace EarTrumpet.UI.Views
                     ["startupTitle"] = R("SettingsStartup"), ["startupDescription"] = R("SettingsStartupDesc"),
                     ["runAtStartup"] = R("SettingsRunAtStartup"), ["trayTitle"] = R("SettingsTrayIcon"),
                     ["trayDescription"] = R("SettingsTrayIconDesc"), ["useLegacyIcon"] = R("SettingsUseLegacyEarTrumpetIcon"),
+                    ["trayDeviceType"] = R("SettingsTrayIconDeviceType"), ["trayDeviceTypeDescription"] = R("SettingsTrayIconDeviceTypeDesc"),
+                    ["requiresModernIcon"] = R("WebSettingsRequiresModernIcon"),
                     ["showAppTooltips"] = R("SettingsShowAppTooltips"), ["showAppTooltipsDescription"] = R("SettingsAppTooltipsDesc"),
                     ["hiddenApps"] = R("SettingsHiddenAppsTitle"), ["hiddenAppsDescription"] = R("SettingsHiddenAppsDesc"),
                     ["restoreAll"] = R("SettingsRestoreHiddenApps"), ["restoreAllDevices"] = R("WebSettingsRestoreAllDevices"),
@@ -861,7 +858,7 @@ namespace EarTrumpet.UI.Views
                     ["confirmClearAll"] = R("WebSettingsConfirmClearAll"), ["cancel"] = R("WebSettingsCancel"),
                     ["saved"] = R("WebSettingsSaved"), ["applied"] = R("WebSettingsApplied"),
                     ["hexColor"] = R("WebSettingsHexColor"), ["preview"] = R("WebSettingsPreview"),
-                    ["appHealth"] = R("WebSettingsAppHealth"), ["searchShortcut"] = R("WebSettingsSearchShortcut"),
+                    ["appHealth"] = R("WebSettingsAppHealth"), ["healthHint"] = R("WebSettingsHealthHint"),["searchShortcut"] = R("WebSettingsSearchShortcut"),
                     ["disabledByEco"] = R("WebSettingsDisabledByEco"),
                     ["requiresSmoothAnimation"] = R("WebSettingsRequiresSmoothAnimation"),
                     ["requiresAutoCheck"] = R("WebSettingsRequiresAutoCheck"),
@@ -870,6 +867,7 @@ namespace EarTrumpet.UI.Views
                 {
                     runAtStartup = App.Settings.RunAtStartup,
                     useLegacyIcon = App.Settings.UseLegacyIcon,
+                    trayIconShowsDeviceType = App.Settings.TrayIconShowsDeviceType,
                     showAppTooltips = App.Settings.ShowAppTooltips,
                     useScrollWheelInTray = App.Settings.UseScrollWheelInTray,
                     useGlobalMouseWheelHook = App.Settings.UseGlobalMouseWheelHook,
@@ -994,6 +992,7 @@ namespace EarTrumpet.UI.Views
             return summary
                 .Replace("Memory:", R("WebSettingsHealthMemory") + ":")
                 .Replace("(peak:", "(" + R("WebSettingsHealthPeak") + ":")
+                .Replace("GDI:", R("WebSettingsHealthGdi") + ":")
                 .Replace("User:", R("WebSettingsHealthUser") + ":")
                 .Replace("Threads:", R("WebSettingsHealthThreads") + ":")
                 .Replace("Uptime:", R("WebSettingsHealthUptime") + ":");

@@ -1,4 +1,5 @@
 using EarTrumpet.DataModel;
+using EarTrumpet.DataModel.WindowsAudio;
 using EarTrumpet.Interop;
 using EarTrumpet.Interop.Helpers;
 using EarTrumpet.UI.ViewModels;
@@ -33,6 +34,8 @@ namespace EarTrumpet.UI.Helpers
         private bool _showUpdateBadge;
         private string _hash;
         private IconKind _kind;
+        private TrayDeviceGlyph _glyph = TrayDeviceGlyph.Speaker;
+        private TrayDeviceGlyph _animationGlyph = TrayDeviceGlyph.Speaker;
 
         // Animation support - using dynamic vector generation
         private VolumeIconGenerator _volumeIconGenerator;
@@ -49,6 +52,7 @@ namespace EarTrumpet.UI.Helpers
             _settings = settings;
 
             _settings.UseLegacyIconChanged += (_, __) => OnLegacyIconChanged();
+            _settings.TrayIconShowsDeviceTypeChanged += OnDeviceTypeIconChanged;
             collection.TrayPropertyChanged += OnTrayPropertyChanged;
 
             InitializeAnimation();
@@ -92,6 +96,7 @@ namespace EarTrumpet.UI.Helpers
         {
             try
             {
+                _glyph = GlyphFromDeviceCollection(_collection, _settings);
                 if (_settings.UseLegacyIcon)
                 {
                     // Legacy icon doesn't animate — stop animation and force refresh
@@ -109,6 +114,21 @@ namespace EarTrumpet.UI.Helpers
             catch (Exception ex)
             {
                 Trace.WriteLine($"TaskbarIconSource OnLegacyIconChanged error: {ex.Message}");
+            }
+        }
+
+        private bool UsesDeviceGlyph => _glyph != TrayDeviceGlyph.Speaker;
+
+        private void OnDeviceTypeIconChanged()
+        {
+            try
+            {
+                _hash = null; // Force refresh
+                OnTrayPropertyChanged();
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"TaskbarIconSource OnDeviceTypeIconChanged error: {ex.Message}");
             }
         }
 
@@ -131,6 +151,7 @@ namespace EarTrumpet.UI.Helpers
             if (_isAnimating || !CanAnimate) return;
 
             _isAnimating = true;
+            _animationGlyph = _glyph;
             _currentFrame = 0;
             _lastAnimationFrameShown = -1;
             _animationIsLightTheme = SystemSettings.IsSystemLightTheme;
@@ -161,7 +182,16 @@ namespace EarTrumpet.UI.Helpers
             {
                 if (!_isAnimating || _volumeIconGenerator == null) return;
 
-                _currentFrame = (_currentFrame + 1) % _volumeIconGenerator.FrameCount;
+                // The default output can change kind mid-animation (speaker -> headphones...):
+                // restart the loop of the new glyph from its first frame.
+                if (_animationGlyph != _glyph)
+                {
+                    _animationGlyph = _glyph;
+                    _currentFrame = -1;
+                    _lastAnimationFrameShown = -1;
+                }
+
+                _currentFrame = (_currentFrame + 1) % _volumeIconGenerator.GetFrameCount(_animationGlyph);
 
                 // Get frame based on current system theme. The theme is a registry read, so it is
                 // sampled once per animation cycle rather than on every 50 ms frame.
@@ -173,7 +203,7 @@ namespace EarTrumpet.UI.Helpers
                 // Several frames of the cycle are identical (waves fully drawn); pushing them to
                 // the shell again would cost an icon copy plus a cross-process NIM_MODIFY for
                 // nothing (GitHub #74).
-                var canonicalFrame = _volumeIconGenerator.GetCanonicalFrame(_currentFrame);
+                var canonicalFrame = _volumeIconGenerator.GetCanonicalFrame(_animationGlyph, _currentFrame);
                 if (Current != null &&
                     canonicalFrame == _lastAnimationFrameShown &&
                     _animationIsLightTheme == _lastAnimationFrameIsLight)
@@ -181,7 +211,7 @@ namespace EarTrumpet.UI.Helpers
                     return;
                 }
 
-                var frame = _volumeIconGenerator.GetFrame(_currentFrame, _animationIsLightTheme);
+                var frame = _volumeIconGenerator.GetFrame(_animationGlyph, _currentFrame, _animationIsLightTheme);
 
                 if (frame != null)
                 {
@@ -250,6 +280,9 @@ namespace EarTrumpet.UI.Helpers
         private void OnTrayPropertyChanged()
         {
             _kind = IconKindFromDeviceCollection(_collection);
+            _glyph = GlyphFromDeviceCollection(_collection, _settings);
+
+            // Every output glyph stays static while muted; resume only while media plays.
             if (_isAnimating && !CanAnimate)
             {
                 StopAnimation(); // Restore the muted/no-device icon immediately.
@@ -265,6 +298,28 @@ namespace EarTrumpet.UI.Helpers
             }
         }
 
+        private static TrayDeviceGlyph GlyphFromDeviceCollection(DeviceCollectionViewModel collection, AppSettings settings)
+        {
+            if (!settings.TrayIconShowsDeviceType || settings.UseLegacyIcon || collection.Default == null)
+            {
+                return TrayDeviceGlyph.Speaker;
+            }
+
+            switch (collection.Default.FormFactor)
+            {
+                // Headsets get the plain headphones too: a mic boom only adds noise at tray size.
+                case AudioEndpointFormFactor.Headphones:
+                case AudioEndpointFormFactor.Headset:
+                case AudioEndpointFormFactor.Handset:
+                    return TrayDeviceGlyph.Headphones;
+                case AudioEndpointFormFactor.DigitalAudioDisplayDevice:
+                    return TrayDeviceGlyph.Monitor;
+                default:
+                    // Speakers, line out, S/PDIF, unknown: the regular speaker is already right.
+                    return TrayDeviceGlyph.Speaker;
+            }
+        }
+
         private Icon SelectAndLoadIcon(IconKind kind)
         {
             // Use our custom generated icon for speaker states (with waves visible)
@@ -272,6 +327,11 @@ namespace EarTrumpet.UI.Helpers
             if (_volumeIconGenerator != null && !_settings.UseLegacyIcon)
             {
                 bool isLightTheme = SystemSettings.IsSystemLightTheme;
+
+                if (UsesDeviceGlyph && kind != IconKind.NoDevice)
+                {
+                    return _volumeIconGenerator.GetDeviceIcon(_glyph, kind == IconKind.Muted, isLightTheme);
+                }
 
                 switch (kind)
                 {
@@ -354,6 +414,7 @@ namespace EarTrumpet.UI.Helpers
 
         private string GetHash() =>
             $"kind={_kind} " +
+            $"glyph={_glyph} " +
             $"{(System.Windows.SystemParameters.HighContrast ? $"hc=true mouse={_isMouseOver} " : "")}" +
             $"dpi={WindowsTaskbar.Dpi} " +
             $"isSysLight={SystemSettings.IsSystemLightTheme} " +

@@ -3535,6 +3535,21 @@ namespace EarTrumpet.Properties {
         public static string WebSettingsHealthUser {
             get { return ResourceManager.GetString("WebSettingsHealthUser", resourceCulture); }
         }
+        public static string SettingsTrayIconDeviceType {
+            get { return ResourceManager.GetString("SettingsTrayIconDeviceType", resourceCulture); }
+        }
+        public static string SettingsTrayIconDeviceTypeDesc {
+            get { return ResourceManager.GetString("SettingsTrayIconDeviceTypeDesc", resourceCulture); }
+        }
+        public static string WebSettingsRequiresModernIcon {
+            get { return ResourceManager.GetString("WebSettingsRequiresModernIcon", resourceCulture); }
+        }
+        public static string WebSettingsHealthGdi {
+            get { return ResourceManager.GetString("WebSettingsHealthGdi", resourceCulture); }
+        }
+        public static string WebSettingsHealthHint {
+            get { return ResourceManager.GetString("WebSettingsHealthHint", resourceCulture); }
+        }
         public static string WebSettingsHealthThreads {
             get { return ResourceManager.GetString("WebSettingsHealthThreads", resourceCulture); }
         }

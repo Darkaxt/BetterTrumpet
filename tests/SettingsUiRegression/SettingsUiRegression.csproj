@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <PlatformTarget>x86</PlatformTarget>
+    <SelfContained>true</SelfContained>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BetterTrumpet"><HintPath>../../Build/Release/BetterTrumpet.dll</HintPath></Reference>
+    <Reference Include="Microsoft.Web.WebView2.Core"><HintPath>../../Build/Release/Microsoft.Web.WebView2.Core.dll</HintPath></Reference>
+    <Reference Include="Microsoft.Web.WebView2.Wpf"><HintPath>../../Build/Release/Microsoft.Web.WebView2.Wpf.dll</HintPath></Reference>
+    <Content Include="../../Build/Release/**/*" Exclude="../../Build/Release/**/*.pdb;../../Build/Release/**/*.xml" Link="%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Probe.js" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

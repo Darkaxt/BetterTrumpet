@@ -7,6 +7,13 @@ namespace EarTrumpet
     public class AppSettings
     {
         public event EventHandler<bool> UseLegacyIconChanged;
+        public event Action TrayIconShowsDeviceTypeChanged;
+        private bool _showsDeviceType = true;
+        public bool TrayIconShowsDeviceType
+        {
+            get => _showsDeviceType;
+            set { _showsDeviceType = value; TrayIconShowsDeviceTypeChanged?.Invoke(); }
+        }
         private bool _legacy;
         public bool UseLegacyIcon
         {
@@ -35,6 +42,7 @@ namespace EarTrumpet.UI.ViewModels
     {
         public enum DeviceIconKind { Mute, Bar0, Bar1, Bar2, Bar3 }
         public DeviceIconKind IconKind { get; set; }
+        public EarTrumpet.DataModel.WindowsAudio.AudioEndpointFormFactor FormFactor { get; set; }
     }
     public class DeviceCollectionViewModel
     {

@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="../../EarTrumpet/UI/Helpers/TaskbarIconSource.cs" Link="TaskbarIconSource.cs" />
     <Compile Include="../../EarTrumpet/UI/Helpers/VolumeIconGenerator.cs" Link="VolumeIconGenerator.cs" />
+    <Compile Include="../../EarTrumpet/DataModel/WindowsAudio/AudioEndpointFormFactor.cs" Link="AudioEndpointFormFactor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="TestEnvironment.cs" />
   </ItemGroup>

@@ -17,7 +17,7 @@ try {
     if (!$RegressionOnly) {
         & dotnet build EarTrumpet/EarTrumpet.csproj -c Release -r win-x86 --self-contained -p:Platform=x86 -p:OutputPath=../Build/Release -m:2
         if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
-        & dotnet run --project tests/DeviceNotificationRegression/DeviceNotificationRegression.csproj -c Release "-p:BaseIntermediateOutputPath=$ScratchDirectory/notification-obj/" "-p:OutputPath=$ScratchDirectory/notification-bin/"
+        & dotnet run --project tests/DeviceNotificationRegression/DeviceNotificationRegression.csproj -c Release "-p:BaseIntermediateOutputPath=$ScratchDirectory/notification-obj/" "-p:OutputPath=$ScratchDirectory/notification-bin/" -- $ScratchDirectory
         if ($LASTEXITCODE -ne 0) { throw 'Device notification regression failed.' }
     }
 } finally { Pop-Location }
