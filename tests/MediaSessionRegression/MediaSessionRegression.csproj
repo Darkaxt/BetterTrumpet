@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <PlatformTarget>x86</PlatformTarget>
+    <SelfContained>true</SelfContained>
+    <UseWPF>true</UseWPF>
+    <AppPayloadDirectory Condition="'$(AppPayloadDirectory)' == ''">$(MSBuildThisFileDirectory)../../Build/Release</AppPayloadDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="BetterTrumpet"><HintPath>$(AppPayloadDirectory)/BetterTrumpet.dll</HintPath></Reference>
+    <Reference Include="Microsoft.Windows.SDK.NET"><HintPath>$(AppPayloadDirectory)/Microsoft.Windows.SDK.NET.dll</HintPath></Reference>
+    <Reference Include="WinRT.Runtime"><HintPath>$(AppPayloadDirectory)/WinRT.Runtime.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

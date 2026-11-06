@@ -37,7 +37,6 @@ namespace EarTrumpet.UI.Views
         private BitmapImage _cachedThumbnail;
         private Color _cachedDominantColor = Color.FromRgb(107, 77, 230);
         private string _cachedTitle;
-        private CancellationTokenSource _thumbnailCts;
         private CancellationTokenSource _trackChangeCts;
         private CancellationTokenSource _albumArtCts;
         private CancellationTokenSource _seekCts;
@@ -134,8 +133,6 @@ namespace EarTrumpet.UI.Views
             // Cleanup on close
             Closed += OnWindowClosed;
 
-            // Pre-load thumbnail in background
-            PreloadThumbnail();
         }
 
         private void OnWindowClosed(object sender, EventArgs e)
@@ -154,8 +151,6 @@ namespace EarTrumpet.UI.Views
             _delayedActionTimer.Stop();
 
             // Cancel and dispose any pending operations
-            _thumbnailCts?.Cancel();
-            _thumbnailCts?.Dispose();
             _trackChangeCts?.Cancel();
             _trackChangeCts?.Dispose();
             _albumArtCts?.Cancel();
@@ -211,34 +206,6 @@ namespace EarTrumpet.UI.Views
             _delayedActionTimer.Start();
         }
 
-        private void PreloadThumbnail()
-        {
-            _thumbnailCts?.Cancel();
-            _thumbnailCts?.Dispose();
-            _thumbnailCts = new CancellationTokenSource();
-            var token = _thumbnailCts.Token;
-
-            Task.Run(() =>
-            {
-                try
-                {
-                    if (token.IsCancellationRequested) return;
-
-                    var thumbnail = MediaSessionService.Instance.GetCurrentThumbnail();
-                    if (thumbnail != null && !token.IsCancellationRequested)
-                    {
-                        var color = GetDominantColor(thumbnail);
-                        if (!token.IsCancellationRequested)
-                        {
-                            _cachedThumbnail = thumbnail;
-                            _cachedDominantColor = color;
-                        }
-                    }
-                }
-                catch (Exception ex) { Trace.WriteLine($"MediaPopupWindow: PreloadThumbnail failed - {ex.Message}"); }
-            }, token);
-        }
-
         private void OnMediaTrackChanged()
         {
             Dispatcher.BeginInvoke((Action)(() =>
@@ -253,8 +220,10 @@ namespace EarTrumpet.UI.Views
                 }
                 else
                 {
+                    // ShowPopup refreshes content from the current session.
+                    // A hidden track change only invalidates local display data.
                     _cachedTitle = null;
-                    PreloadThumbnail();
+                    _cachedThumbnail = null;
                 }
             }));
         }
@@ -432,6 +401,7 @@ namespace EarTrumpet.UI.Views
                     {
                         try
                         {
+                            if (albumToken.IsCancellationRequested) return;
                             if (thumbnail != null)
                             {
                                 _cachedThumbnail = thumbnail;
@@ -529,6 +499,8 @@ namespace EarTrumpet.UI.Views
         {
             Dispatcher.BeginInvoke((Action)(() =>
             {
+                if (!_isShowing) return;
+
                 UpdatePlayPauseIcon();
                 UpdateTitle();
                 UpdateProgress();
@@ -665,7 +637,6 @@ namespace EarTrumpet.UI.Views
             // caches so a new hover cannot resurrect the previous track's content.
             _cachedTitle = null;
             _cachedThumbnail = null;
-            _thumbnailCts?.Cancel();
             MediaSessionService.Instance.InvalidateThumbnailCache();
 
             UpdateAllContent();
@@ -798,6 +769,11 @@ namespace EarTrumpet.UI.Views
             _progressTimer.Stop();
             _mediaRefreshTimer.Stop();
             _delayedActionTimer.Stop();
+            _albumArtCts?.Cancel();
+            _trackChangeCts?.Cancel();
+            _trackChangeOutStoryboard.Stop(this);
+            _trackChangeInStoryboard.Stop(this);
+            _trackRefreshInProgress = false;
 
             BeginAnimation(TopProperty, null);
 
@@ -854,7 +830,7 @@ namespace EarTrumpet.UI.Views
                     var title = MediaSessionService.Instance.GetCurrentMediaInfo();
                     Dispatcher.BeginInvoke((Action)(() =>
                     {
-                        ApplyTitle(title);
+                        if (_isShowing) ApplyTitle(title);
                     }));
                 }
                 catch { }
