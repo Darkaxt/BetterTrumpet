@@ -22,6 +22,7 @@ Integrates upstream through af3aef91a08eaf715dcf7931c80376ac2a27c752.
   is excluded because its forced shutdown deadlines, fixed retries and broad
   temporary-folder cleanup conflict with this fork's maintenance constraints.
 
-Candidate only: full integrated and native rendered verification must pass before
-publication or local deployment. Third-party package manifests are upstream source
-only; this fork does not publish Chocolatey or WinGet packages.
+The complete integrated .NET/React build and automated tray, notification,
+hidden-popup, updater/IPC and native metadata checks pass. Native rendered UI
+verification was not run for this release. Third-party package manifests are
+upstream source only; this fork does not publish Chocolatey or WinGet packages.
