@@ -1,4 +1,4 @@
-# BetterTrumpet 3.5.0 (Darkaxt fork)
+# BetterTrumpet 3.5.1 (Darkaxt fork)
 
 Integrates upstream through af3aef91a08eaf715dcf7931c80376ac2a27c752.
 
@@ -10,6 +10,8 @@ Integrates upstream through af3aef91a08eaf715dcf7931c80376ac2a27c752.
 - Publishes pinned media-track changes directly on the UI dispatcher, preserving
   actual notifications without introducing upstream's 150ms settling debounce.
 - Keeps the updater pointed at Darkaxt/BetterTrumpet and existing user state.
+- Completes upstream's device-view-model detach by also releasing its base
+  stream subscription; removed/reset devices no longer forward notifications.
 - Retains the fork's existing portable-update path. Upstream's new native applier
   is excluded because its forced shutdown deadlines, fixed retries and broad
   temporary-folder cleanup conflict with this fork's maintenance constraints.

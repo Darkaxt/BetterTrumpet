@@ -9,18 +9,18 @@ $env:TEMP = $ScratchDirectory
 $env:TMP = $ScratchDirectory
 New-Item -ItemType Directory -Force -Path $OutputDirectory, $ScratchDirectory | Out-Null
 $exe = Join-Path $repo 'Build\Release\BetterTrumpet.exe'
-if ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersion -ne '3.5.0') {
-    throw 'Expected completed Release build 3.5.0.'
+if ((Get-Item -LiteralPath $exe).VersionInfo.ProductVersion -ne '3.5.1') {
+    throw 'Expected completed Release build 3.5.1.'
 }
 Push-Location $repo
 try {
     & $InnoCompiler "/O$OutputDirectory" installer.iss
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
     & ./build-portable.ps1 -OutputDirectory $OutputDirectory -StagingDirectory (Join-Path $ScratchDirectory 'portable')
-    $names = @('BetterTrumpet-3.5.0-setup.exe', 'BetterTrumpet-3.5.0-portable.zip')
+    $names = @('BetterTrumpet-3.5.1-setup.exe', 'BetterTrumpet-3.5.1-portable.zip')
     $lines = foreach ($name in $names) {
         $hash = (Get-FileHash -LiteralPath (Join-Path $OutputDirectory $name) -Algorithm SHA256).Hash.ToLowerInvariant()
         "$hash  $name"
     }
-    $lines | Set-Content -LiteralPath (Join-Path $OutputDirectory 'release-checksums-3.5.0.txt') -Encoding utf8
+    $lines | Set-Content -LiteralPath (Join-Path $OutputDirectory 'release-checksums-3.5.1.txt') -Encoding utf8
 } finally { Pop-Location }

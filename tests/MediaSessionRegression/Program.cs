@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Threading;
 using System.Windows.Interop;
 using Windows.Media;
@@ -130,14 +131,67 @@ internal static class Program
     private static int NotificationRegression()
     {
         var dispatcher = Dispatcher.CurrentDispatcher;
+        int result = 1;
+        var frame = new DispatcherFrame();
+        dispatcher.BeginInvoke(new Action(async () =>
+        {
+            try { result = await NativeNotificationRegression(); }
+            catch (Exception ex) { Console.Error.WriteLine(ex); }
+            finally { frame.Continue = false; }
+        }));
+        Dispatcher.PushFrame(frame);
+        return result;
+    }
+
+    private static async Task<int> NativeNotificationRegression()
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var manager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+        var ready = new TaskCompletionSource<GlobalSystemMediaTransportControlsSession>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void FindSession()
+        {
+            try
+            {
+                foreach (var candidate in manager.GetSessions())
+                    if (candidate.SourceAppUserModelId == ProviderId) ready.TrySetResult(candidate);
+            }
+            catch (Exception ex) { ready.TrySetException(ex); }
+        }
+        Windows.Foundation.TypedEventHandler<GlobalSystemMediaTransportControlsSessionManager, SessionsChangedEventArgs> changed = (_, __) => dispatcher.BeginInvoke(new Action(FindSession));
+        manager.SessionsChanged += changed;
+        Marshal.ThrowExceptionForHR(SetCurrentProcessExplicitAppUserModelID(ProviderId));
+        using var window = new HwndSource(new HwndSourceParameters("BetterTrumpet notification regression") { WindowStyle = unchecked((int)0x80000000), Width = 1, Height = 1 });
+        var provider = SystemMediaTransportControlsInterop.GetForWindow(window.Handle);
+        try
+        {
+            // Metadata-only native session, never shown and never given an audio source.
+            provider.IsPlayEnabled = true;
+            provider.IsEnabled = true;
+            provider.PlaybackStatus = MediaPlaybackStatus.Paused;
+            provider.DisplayUpdater.Type = MediaPlaybackType.Music;
+            provider.DisplayUpdater.MusicProperties.Title = "BetterTrumpet notification regression";
+            provider.DisplayUpdater.Update();
+            FindSession();
+            Console.WriteLine("Waiting for owned paused metadata session registration.");
+            var session = await ready.Task;
+            return VerifyNotificationDispatch(dispatcher, session);
+        }
+        finally
+        {
+            manager.SessionsChanged -= changed;
+            provider.IsEnabled = false;
+            provider.DisplayUpdater.ClearAll();
+        }
+    }
+
+    private static int VerifyNotificationDispatch(Dispatcher dispatcher, GlobalSystemMediaTransportControlsSession session)
+    {
         var service = (MediaSessionService)RuntimeHelpers.GetUninitializedObject(typeof(MediaSessionService));
         typeof(MediaSessionService).GetField("_dispatcher", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(service, dispatcher);
         typeof(MediaSessionService).GetField("_thumbnailLock", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(service, new object());
         var pinned = typeof(MediaSessionService).GetField("_pinnedSession", BindingFlags.Instance | BindingFlags.NonPublic);
-        // Controlled session identity only: no native factory, media player or audio.
-        // Real compiled publication handlers must retain each queued notification.
-        var session = (GlobalSystemMediaTransportControlsSession)RuntimeHelpers.GetUninitializedObject(typeof(GlobalSystemMediaTransportControlsSession));
-        GC.SuppressFinalize(session);
+        // The service does not subscribe to native callbacks in this fixture:
+        // invoke its real handlers with our real native session identity only.
         pinned.SetValue(service, session);
         int tracks = 0, timelines = 0;
         service.MediaTrackChanged += () => tracks++;
@@ -157,7 +211,7 @@ internal static class Program
         pinned.SetValue(service, null);
         Drain(dispatcher);
         if (tracks != 0 || timelines != 0) throw new Exception("Queued notifications survived a pinned-session change.");
-        Console.WriteLine("PASS compiled pinned track/timeline notifications publish directly and reject stale queued sessions");
+        Console.WriteLine("PASS compiled pinned track/timeline handlers publish directly and reject stale queued sessions using an owned native session");
         return 0;
     }
 

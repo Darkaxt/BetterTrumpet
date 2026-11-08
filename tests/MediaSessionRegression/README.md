@@ -25,8 +25,10 @@ before the patch. Neither test establishes a reduction in overall machine CPU.
 After upstream 3.5.0, `hidden` also checks real compiled pinned track/timeline
 publication on the dispatcher: each queued event publishes directly, while a
 session change before dispatch rejects the stale event. The session identity is
-a controlled uninitialized projection with finalization suppressed; it is not a
-native Windows media-session reproduction and invokes no native factory or audio.
+an owned, paused metadata-only native Windows session from a hidden test window.
+The actual service handlers are invoked explicitly without subscribing the fixture
+to native callbacks, so event-frequency variation cannot affect the assertions.
+The test closes its window/session and plays no audio or controls on other apps.
 The optional native diagnostic now pins its owned metadata-only session. Compare
 its production count with that owned provider's native count, not other apps'
 aggregate callbacks, since upstream routes popup content to the pinned provider.

@@ -13,6 +13,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 internal static class Program
@@ -32,7 +33,7 @@ internal static class Program
         // This route is prepared for an explicit user exception to the Sandbox
         // restriction. The launcher must not set it before that consent exists.
         bool host = Environment.GetEnvironmentVariable("BETTERTRUMPET_UI_TEST_HOST") == "1" &&
-            string.Equals(Path.GetFullPath(Root).TrimEnd(Path.DirectorySeparatorChar), @"D:\Temp\bettertrumpet-performance-20261107\host-ui", StringComparison.OrdinalIgnoreCase);
+            string.Equals(Path.GetFullPath(Root).TrimEnd(Path.DirectorySeparatorChar), @"D:\Temp\bettertrumpet-upstream-20261108\host-ui", StringComparison.OrdinalIgnoreCase);
         if (!guest && !host)
         {
             Console.Error.WriteLine("Use the owned guest or the exact, separately authorized portable host validation directory.");
@@ -171,7 +172,9 @@ internal static class Program
         var firstAnimation = ShowPopup(popup, icon);
         await rendered.Task;
         await firstAnimation;
-        popup.CancelHide();
+        // Upstream now owns hide cancellation in its real MouseEnter handler.
+        // Model that event on this test window without moving the host cursor.
+        popup.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount) { RoutedEvent = Mouse.MouseEnterEvent });
         await Dispatcher.Yield(DispatcherPriority.ContextIdle);
         var playing = typeof(EarTrumpet.DataModel.MediaSessionService).GetField("_isMediaPlaying", BindingFlags.Instance | BindingFlags.NonPublic);
         var published = typeof(EarTrumpet.DataModel.MediaSessionService).GetField("MediaPlaybackChanged", BindingFlags.Instance | BindingFlags.NonPublic);

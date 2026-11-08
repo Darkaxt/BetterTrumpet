@@ -10,7 +10,7 @@ the executable requires `BETTERTRUMPET_UI_TEST_GUEST=1` and
 `C:\Coordinator\Work`. It seeds settings and theme containers only in that guest.
 The prepared host route requires a separately authorized explicit exception to
 the Sandbox restriction, BETTERTRUMPET_UI_TEST_HOST=1 and the exact disposable
-directory D:\Temp\bettertrumpet-performance-20261107\host-ui. It uses portable
+directory D:\Temp\bettertrumpet-upstream-20261108\host-ui. It uses portable
 settings and a private WebView2 profile and skips all guest registry setup. Do not
 launch that route before consent. An actual interactive guest login and an available
 WebView2 runtime are required; a headless SYSTEM controller failure is not a
@@ -22,3 +22,10 @@ The harness also verifies the real native media popup with controlled service
 notifications, a hidden-state transition and fresh content on reopening. Its
 playback-state changes belong only to the test process; it does not control audio
 or playback in other applications.
+
+The 3.4.2 desktop exception does not authorize this 3.5.1 candidate. Changed
+flyout motion, popup expand/marquee geometry and the new tick selector additionally
+need native rendered review before release. Inspect the selector/options without
+triggering an audible preview on the host; audio-preview behavior requires the
+owned guest with audio redirection disabled. The existing harness's settings and
+popup checks alone do not establish acceptance of all new flyout behavior.
