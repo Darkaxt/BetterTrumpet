@@ -606,19 +606,9 @@ namespace EarTrumpet.DataModel
                     return _legacyService?.GetCurrentMediaInfo();
                 }
 
-                GlobalSystemMediaTransportControlsSessionMediaProperties mediaProps = null;
-                var operation = session.TryGetMediaPropertiesAsync();
-                using var waitHandle = new System.Threading.ManualResetEventSlim(false);
-                operation.Completed = (info, status) =>
-                {
-                    if (status == AsyncStatus.Completed)
-                        mediaProps = info.GetResults();
-                    SetQuietly(waitHandle);
-                };
-
-                // Callers are background threads. 100 ms was often too short for Spotify and
-                // browsers, which made the popup show "No media playing" over a playing track.
-                waitHandle.Wait(TimeSpan.FromMilliseconds(750));
+                // Every caller runs off the UI thread. Observe native completion,
+                // rather than returning absent metadata while its request is pending.
+                var mediaProps = session.TryGetMediaPropertiesAsync().GetAwaiter().GetResult();
 
                 if (mediaProps != null)
                 {
@@ -675,11 +665,6 @@ namespace EarTrumpet.DataModel
         /// <summary>
         /// Core thumbnail fetching logic — expensive, only called when cache is dirty.
         /// </summary>
-        private static void SetQuietly(System.Threading.ManualResetEventSlim waitHandle)
-        {
-            try { waitHandle.Set(); } catch (ObjectDisposedException) { }
-        }
-
         private BitmapImage FetchThumbnailCore()
         {
             try
@@ -688,48 +673,19 @@ namespace EarTrumpet.DataModel
                 if (session == null)
                     return GetLegacyPlayerIcon();
 
-                // Get media properties (timeout 1.5s — reduced from 2s)
-                var propsOp = session.TryGetMediaPropertiesAsync();
-                using var propsWait = new System.Threading.ManualResetEventSlim(false);
-                propsOp.Completed = (_, __) => SetQuietly(propsWait);
-                if (propsOp.Status == AsyncStatus.Started)
-                    propsWait.Wait(TimeSpan.FromMilliseconds(1500));
-
-                if (propsOp.Status != AsyncStatus.Completed)
-                    return GetLegacyPlayerIcon();
-
-                var mediaProps = propsOp.GetResults();
+                // This cached fetch is called only by background workers.
+                var mediaProps = session.TryGetMediaPropertiesAsync().GetAwaiter().GetResult();
                 if (mediaProps?.Thumbnail == null)
                     return GetLegacyPlayerIcon();
 
-                // Open the thumbnail stream (timeout 1.5s)
-                var streamOp = mediaProps.Thumbnail.OpenReadAsync();
-                using var streamWait = new System.Threading.ManualResetEventSlim(false);
-                streamOp.Completed = (_, __) => SetQuietly(streamWait);
-                if (streamOp.Status == AsyncStatus.Started)
-                    streamWait.Wait(TimeSpan.FromMilliseconds(1500));
-
-                if (streamOp.Status != AsyncStatus.Completed)
-                    return GetLegacyPlayerIcon();
-
-                using var stream = streamOp.GetResults();
+                using var stream = mediaProps.Thumbnail.OpenReadAsync().GetAwaiter().GetResult();
                 if (stream == null || stream.Size == 0)
                     return GetLegacyPlayerIcon();
 
-                // Read the stream (timeout 1.5s)
                 var size = (uint)stream.Size;
                 var buffer = new Windows.Storage.Streams.Buffer(size);
 
-                var readOp = stream.ReadAsync(buffer, size, InputStreamOptions.None);
-                using var readWait = new System.Threading.ManualResetEventSlim(false);
-                readOp.Completed = (_, __) => SetQuietly(readWait);
-                if (readOp.Status == AsyncStatus.Started)
-                    readWait.Wait(TimeSpan.FromMilliseconds(1500));
-
-                if (readOp.Status != AsyncStatus.Completed)
-                    return GetLegacyPlayerIcon();
-
-                var readBuffer = readOp.GetResults();
+                var readBuffer = stream.ReadAsync(buffer, size, InputStreamOptions.None).GetAwaiter().GetResult();
                 if (readBuffer == null || readBuffer.Length == 0)
                     return GetLegacyPlayerIcon();
 

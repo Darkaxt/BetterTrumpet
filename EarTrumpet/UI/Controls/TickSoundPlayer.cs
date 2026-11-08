@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -111,32 +112,32 @@ namespace EarTrumpet.UI.Controls
 
             try
             {
-                Dispatcher created = null;
-                using (var ready = new ManualResetEventSlim())
+                var ready = new TaskCompletionSource<Dispatcher>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var thread = new Thread(() =>
                 {
-                    var thread = new Thread(() =>
+                    Dispatcher created;
+                    try
                     {
                         created = Dispatcher.CurrentDispatcher;
-                        ready.Set();
-                        Dispatcher.Run();
-                    })
-                    {
-                        IsBackground = true,
-                        Name = "BetterTrumpet tick sound",
-                    };
-                    thread.SetApartmentState(ApartmentState.STA);
-                    thread.Start();
-
-                    // Only the thread start; the player is created asynchronously below.
-                    if (!ready.Wait(TimeSpan.FromSeconds(2)) || created == null)
-                    {
-                        _failed = true;
-                        Trace.WriteLine("TickSoundPlayer: sound thread did not start");
-                        return null;
                     }
-                }
+                    catch (Exception ex)
+                    {
+                        ready.SetException(ex);
+                        return;
+                    }
+                    ready.SetResult(created);
+                    Dispatcher.Run();
+                })
+                {
+                    IsBackground = true,
+                    Name = "BetterTrumpet tick sound",
+                };
+                thread.SetApartmentState(ApartmentState.STA);
+                thread.Start();
 
-                _dispatcher = created;
+                // Observe actual startup (including failure), with no deadline or
+                // disposable wait handle that could race the worker's signal.
+                _dispatcher = ready.Task.GetAwaiter().GetResult();
                 _dispatcher.BeginInvoke(DispatcherPriority.Background, (Action)EnsurePlayer);
                 return _dispatcher;
             }

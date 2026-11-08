@@ -174,7 +174,7 @@ internal static class Program
             FindSession();
             Console.WriteLine("Waiting for owned paused metadata session registration.");
             var session = await ready.Task;
-            return VerifyNotificationDispatch(dispatcher, session);
+            return await VerifyNotificationDispatch(dispatcher, session, provider);
         }
         finally
         {
@@ -184,7 +184,7 @@ internal static class Program
         }
     }
 
-    private static int VerifyNotificationDispatch(Dispatcher dispatcher, GlobalSystemMediaTransportControlsSession session)
+    private static async Task<int> VerifyNotificationDispatch(Dispatcher dispatcher, GlobalSystemMediaTransportControlsSession session, SystemMediaTransportControls provider)
     {
         var service = (MediaSessionService)RuntimeHelpers.GetUninitializedObject(typeof(MediaSessionService));
         typeof(MediaSessionService).GetField("_dispatcher", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(service, dispatcher);
@@ -212,6 +212,43 @@ internal static class Program
         Drain(dispatcher);
         if (tracks != 0 || timelines != 0) throw new Exception("Queued notifications survived a pinned-session change.");
         Console.WriteLine("PASS compiled pinned track/timeline handlers publish directly and reject stale queued sessions using an owned native session");
+        pinned.SetValue(service, session);
+        const string expected = "BetterTrumpet completed metadata regression";
+        var metadataReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        async void CheckMetadata(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args)
+        {
+            try
+            {
+                var props = await session.TryGetMediaPropertiesAsync();
+                if (props.Title == expected && props.Thumbnail != null) metadataReady.TrySetResult(true);
+            }
+            catch (Exception ex) { metadataReady.TrySetException(ex); }
+        }
+        // Own a one-pixel PNG in this registered test-output directory. A native
+        // StorageFile supplies the image content type; no audio source is created.
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(System.Windows.Media.Imaging.BitmapSource.Create(1, 1, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, new byte[] { 255, 0, 0, 255 }, 4)));
+        using var png = new System.IO.MemoryStream();
+        encoder.Save(png);
+        var fixturePath = System.IO.Path.Combine(AppContext.BaseDirectory, "metadata-art-" + Guid.NewGuid().ToString("N") + ".png");
+        System.IO.File.WriteAllBytes(fixturePath, png.ToArray());
+        var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(fixturePath);
+        session.MediaPropertiesChanged += CheckMetadata;
+        try
+        {
+            provider.DisplayUpdater.MusicProperties.Title = expected;
+            provider.DisplayUpdater.MusicProperties.Artist = string.Empty;
+            provider.DisplayUpdater.Thumbnail = Windows.Storage.Streams.RandomAccessStreamReference.CreateFromFile(file);
+            provider.DisplayUpdater.Update();
+            CheckMetadata(session, null);
+            await metadataReady.Task;
+            var title = await Task.Run(service.GetCurrentMediaInfo);
+            if (title != expected) throw new Exception("Compiled metadata reader did not return completed native title.");
+            var thumbnail = await Task.Run(service.GetCurrentThumbnail);
+            if (thumbnail == null || thumbnail.PixelWidth < 1 || thumbnail.PixelWidth > 300 || thumbnail.PixelHeight < 1) throw new Exception("Compiled thumbnail reader did not return valid bounded native art.");
+            Console.WriteLine($"PASS compiled metadata and thumbnail readers observe actual native completion without timing thresholds ({thumbnail.PixelWidth}x{thumbnail.PixelHeight})");
+        }
+        finally { session.MediaPropertiesChanged -= CheckMetadata; }
         return 0;
     }
 

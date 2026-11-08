@@ -25,7 +25,9 @@ or playback in other applications.
 
 The 3.4.2 desktop exception does not authorize this 3.5.1 candidate. Changed
 flyout motion, popup expand/marquee geometry and the new tick selector additionally
-need native rendered review before release. Inspect the selector/options without
+need native rendered review before release. Also verify pending row entrance
+during mouse/touch capture, release-driven resumption and hide/reopen cancellation
+after removal of the capture retry poll. Inspect the selector/options without
 triggering an audible preview on the host; audio-preview behavior requires the
 owned guest with audio redirection disabled. The existing harness's settings and
 popup checks alone do not establish acceptance of all new flyout behavior.

@@ -69,7 +69,22 @@ internal static class Program
         if (resetNotifications != 0) throw new Exception("Reset device still reaches its view model.");
         Console.WriteLine("PASS removed/reset device view models detach from actual device notifications");
         if (args.Length > 0) VerifyUpdater(args[0]);
+        VerifyTickWorker();
         return 0;
+    }
+
+    private static void VerifyTickWorker()
+    {
+        // Prewarm never opens a sound file. Observe the actual worker ready and
+        // dispatcher shutdown signals, without a timer or any playback request.
+        var type = typeof(App).Assembly.GetType("EarTrumpet.UI.Controls.TickSoundPlayer");
+        type.GetMethod("Prewarm").Invoke(null, null);
+        var dispatcher = (System.Windows.Threading.Dispatcher)type.GetField("_dispatcher", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null);
+        if (dispatcher == null) throw new Exception("Tick worker did not become ready.");
+        type.GetMethod("Shutdown").Invoke(null, null);
+        dispatcher.Thread.Join();
+        if (!dispatcher.HasShutdownFinished) throw new Exception("Tick worker shutdown did not complete.");
+        Console.WriteLine("PASS compiled tick worker reaches actual readiness and shutdown without opening audio");
     }
 
     private static void VerifyUpdater(string scratch)

@@ -29,6 +29,11 @@ an owned, paused metadata-only native Windows session from a hidden test window.
 The actual service handlers are invoked explicitly without subscribing the fixture
 to native callbacks, so event-frequency variation cannot affect the assertions.
 The test closes its window/session and plays no audio or controls on other apps.
+It also publishes its own title and a one-pixel PNG fixture in the registered test
+output directory (cleaned transactionally after test exit), observes native
+metadata readiness, and checks the production background readers' completed title
+and thumbnail. There is no elapsed-time success threshold or natural-browser
+event-frequency assertion.
 The optional native diagnostic now pins its owned metadata-only session. Compare
 its production count with that owned provider's native count, not other apps'
 aggregate callbacks, since upstream routes popup content to the pinned provider.

@@ -49,7 +49,6 @@ namespace EarTrumpet.UI.Views
         private bool _isRowLoopRunning;
         private TimeSpan _lastRowTick = TimeSpan.MinValue;
         private int? _rowWindowOffsetPending;
-        private DispatcherTimer _rowRetryTimer;
         private TranslateTransform _rowContentShift;
         private bool _isRepositioning;
 
@@ -64,7 +63,7 @@ namespace EarTrumpet.UI.Views
         private void InitializeRowEntrance()
         {
             // Capture ends when a slider drag ends: start the rows that waited for it.
-            AddHandler(Mouse.LostMouseCaptureEvent, new MouseEventHandler((_, __) => OnPointerCaptureLost()), true);
+            IsMouseCaptureWithinChanged += (_, __) => OnPointerCaptureLost();
             AddHandler(LostTouchCaptureEvent, new EventHandler<TouchEventArgs>((_, __) => OnPointerCaptureLost()), true);
         }
 
@@ -141,7 +140,7 @@ namespace EarTrumpet.UI.Views
 
         private void OnPointerCaptureLost()
         {
-            if (_pendingRows.Count > 0)
+            if (_pendingRows.Count > 0 && !IsPointerInteractionActive())
             {
                 ScheduleRowStart();
             }
@@ -171,10 +170,8 @@ namespace EarTrumpet.UI.Views
 
             if (IsPointerInteractionActive())
             {
-                EnsureRowRetryTimer();
                 return;
             }
-            StopRowRetryTimer();
 
             bool animate = Themes.Manager.Current.AnimationsEnabled;
             bool anyGrowing = false;
@@ -462,39 +459,10 @@ namespace EarTrumpet.UI.Views
             _rowContentShift.Y = dip;
         }
 
-        private void EnsureRowRetryTimer()
-        {
-            // Safety net in case a capture ends without LostMouseCapture reaching the window.
-            if (_rowRetryTimer == null)
-            {
-                _rowRetryTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
-                _rowRetryTimer.Tick += (_, __) =>
-                {
-                    if (_pendingRows.Count == 0)
-                    {
-                        StopRowRetryTimer();
-                        return;
-                    }
-                    ScheduleRowStart();
-                };
-            }
-
-            if (!_rowRetryTimer.IsEnabled)
-            {
-                _rowRetryTimer.Start();
-            }
-        }
-
-        private void StopRowRetryTimer()
-        {
-            _rowRetryTimer?.Stop();
-        }
-
         /// <summary>Close started: stop driving, leave the visuals as they are for the exit.</summary>
         private void FreezeRowEntrance()
         {
             StopRowLoop();
-            StopRowRetryTimer();
         }
 
         /// <summary>
@@ -504,7 +472,6 @@ namespace EarTrumpet.UI.Views
         private void ResetRowEntrance()
         {
             StopRowLoop();
-            StopRowRetryTimer();
 
             foreach (var row in _pendingRows)
             {

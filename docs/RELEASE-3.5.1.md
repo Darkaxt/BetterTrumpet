@@ -12,6 +12,12 @@ Integrates upstream through af3aef91a08eaf715dcf7931c80376ac2a27c752.
 - Keeps the updater pointed at Darkaxt/BetterTrumpet and existing user state.
 - Completes upstream's device-view-model detach by also releasing its base
   stream subscription; removed/reset devices no longer forward notifications.
+- Waits for the tick worker's actual readiness signal, keeping its startup event
+  alive until the worker has signaled rather than expiring after two seconds.
+- Starts waiting row animations from actual mouse/touch capture changes, avoiding
+  upstream's repeating 250 ms capture-loss safety poll.
+- Reads background SMTC metadata and thumbnail streams through actual WinRT
+  completion, with owned resource disposal and no timed fallback to absent data.
 - Retains the fork's existing portable-update path. Upstream's new native applier
   is excluded because its forced shutdown deadlines, fixed retries and broad
   temporary-folder cleanup conflict with this fork's maintenance constraints.
