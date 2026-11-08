@@ -124,7 +124,48 @@ internal static class Program
             thumbnail.Dispose();
         }
         if (failures == 0) Console.WriteLine("PASS compiled hidden popup handlers acquire no thumbnail job and touch no visual content");
-        return failures == 0 ? 0 : 1;
+        return failures == 0 ? NotificationRegression() : 1;
+    }
+
+    private static int NotificationRegression()
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var service = (MediaSessionService)RuntimeHelpers.GetUninitializedObject(typeof(MediaSessionService));
+        typeof(MediaSessionService).GetField("_dispatcher", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(service, dispatcher);
+        typeof(MediaSessionService).GetField("_thumbnailLock", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(service, new object());
+        var pinned = typeof(MediaSessionService).GetField("_pinnedSession", BindingFlags.Instance | BindingFlags.NonPublic);
+        // Controlled session identity only: no native factory, media player or audio.
+        // Real compiled publication handlers must retain each queued notification.
+        var session = (GlobalSystemMediaTransportControlsSession)RuntimeHelpers.GetUninitializedObject(typeof(GlobalSystemMediaTransportControlsSession));
+        GC.SuppressFinalize(session);
+        pinned.SetValue(service, session);
+        int tracks = 0, timelines = 0;
+        service.MediaTrackChanged += () => tracks++;
+        service.TimelineChanged += () => timelines++;
+        var track = typeof(MediaSessionService).GetMethod("OnMediaPropertiesChanged", BindingFlags.Instance | BindingFlags.NonPublic);
+        var timeline = typeof(MediaSessionService).GetMethod("OnTimelinePropertiesChanged", BindingFlags.Instance | BindingFlags.NonPublic);
+        for (int i = 0; i < 3; i++)
+        {
+            track.Invoke(service, new object[] { session, null });
+            timeline.Invoke(service, new object[] { session, null });
+        }
+        Drain(dispatcher);
+        if (tracks != 3 || timelines != 3) throw new Exception($"Pinned notifications were delayed or dropped: tracks={tracks}, timelines={timelines}");
+        tracks = timelines = 0;
+        track.Invoke(service, new object[] { session, null });
+        timeline.Invoke(service, new object[] { session, null });
+        pinned.SetValue(service, null);
+        Drain(dispatcher);
+        if (tracks != 0 || timelines != 0) throw new Exception("Queued notifications survived a pinned-session change.");
+        Console.WriteLine("PASS compiled pinned track/timeline notifications publish directly and reject stale queued sessions");
+        return 0;
+    }
+
+    private static void Drain(Dispatcher dispatcher)
+    {
+        var frame = new DispatcherFrame();
+        dispatcher.BeginInvoke(new Action(() => frame.Continue = false), DispatcherPriority.ContextIdle);
+        Dispatcher.PushFrame(frame);
     }
 
     private static void Set(string name, object value) => typeof(MediaSessionService).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(_service, value);
@@ -133,6 +174,8 @@ internal static class Program
     {
         if (_observe) Observe();
         bool providerPresent = HasControlledSession();
+        foreach (var session in _manager.GetSessions())
+            if (session.SourceAppUserModelId == ProviderId) Set("_pinnedSession", session);
         var subscribe = typeof(MediaSessionService).GetMethod("SubscribeToAllSessions", BindingFlags.Instance | BindingFlags.NonPublic);
         for (var index = 0; index < _repeats; index++)
         {

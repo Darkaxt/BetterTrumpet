@@ -21,3 +21,12 @@ an empty observation does not prove registration correctness.
 Native experiments did not reproduce subscription amplification, so production
 subscription ownership is unchanged. The hidden-popup failure did reproduce
 before the patch. Neither test establishes a reduction in overall machine CPU.
+
+After upstream 3.5.0, `hidden` also checks real compiled pinned track/timeline
+publication on the dispatcher: each queued event publishes directly, while a
+session change before dispatch rejects the stale event. The session identity is
+a controlled uninitialized projection with finalization suppressed; it is not a
+native Windows media-session reproduction and invokes no native factory or audio.
+The optional native diagnostic now pins its owned metadata-only session. Compare
+its production count with that owned provider's native count, not other apps'
+aggregate callbacks, since upstream routes popup content to the pinned provider.

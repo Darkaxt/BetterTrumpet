@@ -52,6 +52,22 @@ internal static class Program
             return 1;
         }
         Console.WriteLine("PASS real device -> view model -> tray notifications preserve final mute/unmute state");
+        var removedViewModel = collection.Default;
+        int removedNotifications = 0;
+        removedViewModel.PropertyChanged += (_, __) => removedNotifications++;
+        manager.Devices.Remove(device);
+        removedNotifications = 0;
+        device.IsMuted = true;
+        if (removedNotifications != 0) throw new Exception("Removed device still reaches its view model.");
+        manager.Devices.Add(device);
+        var resetViewModel = collection.AllDevices[0];
+        int resetNotifications = 0;
+        resetViewModel.PropertyChanged += (_, __) => resetNotifications++;
+        manager.Devices.Clear();
+        resetNotifications = 0;
+        device.IsMuted = false;
+        if (resetNotifications != 0) throw new Exception("Reset device still reaches its view model.");
+        Console.WriteLine("PASS removed/reset device view models detach from actual device notifications");
         if (args.Length > 0) VerifyUpdater(args[0]);
         return 0;
     }

@@ -26,6 +26,11 @@ namespace EarTrumpet.UI.ViewModels
             _stream.PropertyChanged -= Stream_PropertyChanged;
         }
 
+        protected void DetachStreamNotifications()
+        {
+            _stream.PropertyChanged -= Stream_PropertyChanged;
+        }
+
         private void Stream_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             RaisePropertyChanged(e.PropertyName);
