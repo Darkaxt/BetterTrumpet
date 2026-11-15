@@ -1238,7 +1238,7 @@ namespace EarTrumpet
             {
                 _trayIcon?.ShowNotification(
                     EarTrumpet.Properties.Resources.DefaultDeviceChangedNotificationTitle,
-                    string.Format(EarTrumpet.Properties.Resources.DefaultDeviceChangedNotificationFormat, device.DisplayName));
+                    device.DisplayName);
             }
 
             if (!string.IsNullOrEmpty(newId))
@@ -1253,7 +1253,7 @@ namespace EarTrumpet
             {
                 _trayIcon?.ShowNotification(
                     EarTrumpet.Properties.Resources.DefaultDeviceChangedNotificationTitle,
-                    string.Format(EarTrumpet.Properties.Resources.DefaultDeviceChangedNotificationFormat, deviceName));
+                    deviceName);
             }
         }
 

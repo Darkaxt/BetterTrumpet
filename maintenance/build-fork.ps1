@@ -20,14 +20,14 @@ $env:NUGET_HTTP_CACHE_PATH = Join-Path $ScratchDirectory 'nuget-http-cache'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 Push-Location $repo
 try {
-    & dotnet run --project tests/TrayIconRegression/TrayIconRegression.csproj -c Release
+    & dotnet run --project tests/TrayIconRegression/TrayIconRegression.csproj -c Release -p:UseSharedCompilation=false
     if ($LASTEXITCODE -ne 0) { throw 'Tray regression failed.' }
     if (!$RegressionOnly) {
-        & dotnet build EarTrumpet/EarTrumpet.csproj -c Release -r win-x86 --self-contained -p:Platform=x86 -p:OutputPath=../Build/Release -m:2
+        & dotnet build EarTrumpet/EarTrumpet.csproj -c Release -r win-x86 --self-contained -p:Platform=x86 -p:OutputPath=../Build/Release -p:UseSharedCompilation=false -m:2
         if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
-        & dotnet run --project tests/DeviceNotificationRegression/DeviceNotificationRegression.csproj -c Release "-p:BaseIntermediateOutputPath=$ScratchDirectory/notification-obj/" "-p:OutputPath=$ScratchDirectory/notification-bin/" -- $ScratchDirectory
+        & dotnet run --project tests/DeviceNotificationRegression/DeviceNotificationRegression.csproj -c Release -p:UseSharedCompilation=false "-p:BaseIntermediateOutputPath=$ScratchDirectory/notification-obj/" "-p:OutputPath=$ScratchDirectory/notification-bin/" -- $ScratchDirectory
         if ($LASTEXITCODE -ne 0) { throw 'Device notification regression failed.' }
-        & dotnet run --project tests/MediaSessionRegression/MediaSessionRegression.csproj -c Release "-p:BaseIntermediateOutputPath=$ScratchDirectory/media-obj/" "-p:OutputPath=$ScratchDirectory/media-bin/" -- hidden
+        & dotnet run --project tests/MediaSessionRegression/MediaSessionRegression.csproj -c Release -p:UseSharedCompilation=false "-p:BaseIntermediateOutputPath=$ScratchDirectory/media-obj/" "-p:OutputPath=$ScratchDirectory/media-bin/" -- hidden
         if ($LASTEXITCODE -ne 0) { throw 'Hidden media popup regression failed.' }
     }
 } finally { Pop-Location }

@@ -127,6 +127,23 @@ namespace EarTrumpet.DataModel
             }
         }
 
+        private bool _isInstalling;
+        public bool IsInstalling
+        {
+            get => _isInstalling;
+            private set
+            {
+                if (_isInstalling != value)
+                {
+                    _isInstalling = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsInstalling)));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(UpdateText)));
+                }
+            }
+        }
+
+        public bool IsBusy => IsDownloading || IsInstalling;
+
         private DateTime _lastCheckTime;
         public DateTime LastCheckTime
         {
@@ -153,6 +170,7 @@ namespace EarTrumpet.DataModel
         {
             get
             {
+                if (IsInstalling) return Resources.UpdateTextInstalling;
                 if (IsDownloading) return Resources.UpdateTextDownloading;
                 return IsUpdateAvailable ? string.Format(Resources.UpdateTextAvailable, LatestVersion) : Resources.UpdateTextUpToDate;
             }
@@ -339,7 +357,7 @@ namespace EarTrumpet.DataModel
         /// </summary>
         public async void DownloadAndInstallAsync()
         {
-            if (IsDownloading) return;
+            if (IsBusy) return;
 
             if (Storage.StorageFactory.IsPortableMode)
             {
@@ -383,14 +401,13 @@ namespace EarTrumpet.DataModel
                 Trace.WriteLine($"UpdateService: Downloaded {fileInfo.Length / 1024}KB, SHA-256 verified — launching installer");
 
                 // Launch the installer silently — it will kill us, install, and relaunch
-                Process.Start(new ProcessStartInfo
+                await RunInstallerAsync(new ProcessStartInfo
                 {
                     FileName = tempPath,
                     Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART",
                     UseShellExecute = true
                 });
 
-                // The installer's PrepareToInstall() will taskkill us
             }
             catch (Exception ex)
             {
@@ -406,6 +423,26 @@ namespace EarTrumpet.DataModel
             finally
             {
                 IsDownloading = false;
+            }
+        }
+
+        private async Task RunInstallerAsync(ProcessStartInfo startInfo)
+        {
+            IsInstalling = true;
+            try
+            {
+                // Normally PrepareToInstall replaces this instance. If setup exits
+                // without replacing it, observe that actual result before enabling
+                // another attempt. A slow or blocked setup is still in progress.
+                using var installer = Process.Start(startInfo)
+                    ?? throw new InvalidOperationException("Installer did not start.");
+                await installer.WaitForExitAsync();
+                if (installer.ExitCode != 0)
+                    throw new InvalidOperationException($"Installer exited with code {installer.ExitCode}.");
+            }
+            finally
+            {
+                IsInstalling = false;
             }
         }
 

@@ -11,11 +11,12 @@ using System.Text.Json;
 using EarTrumpet.DataModel;
 using EarTrumpet.Interop.MMDeviceAPI;
 
-internal static class Program
+internal static partial class Program
 {
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Length == 3 && args[0] == "--installer-fixture") return InstallerFixture(args[1], int.Parse(args[2]));
         if (args.Length > 0 && args[0] == "--audio-roles")
         {
             var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
@@ -70,6 +71,8 @@ internal static class Program
         Console.WriteLine("PASS removed/reset device view models detach from actual device notifications");
         if (args.Length > 0) VerifyUpdater(args[0]);
         VerifyTickWorker();
+        VerifyUpstreamLifecycle();
+        if (args.Length > 0) VerifyInstallerCompletion();
         return 0;
     }
 
@@ -127,14 +130,15 @@ internal static class Program
         public IAudioDevice Default { get => _default; set { _default = value; DefaultChanged?.Invoke(this, value); } }
         public ObservableCollection<IAudioDevice> Devices { get; } = new ObservableCollection<IAudioDevice>();
         public string Kind => "Playback";
-        public void UpdatePeakValues() { }
+        public int PeakUpdates;
+        public void UpdatePeakValues() { System.Threading.Interlocked.Increment(ref PeakUpdates); }
         public void AddFilter(Func<ObservableCollection<IAudioDevice>, ObservableCollection<IAudioDevice>> filter) { }
     }
 
     private sealed class AudioDevice : IAudioDevice
     {
-        public AudioDevice(IAudioDeviceManager manager) { Parent = manager; }
-        public string Id => "regression-device";
+        public AudioDevice(IAudioDeviceManager manager, string id = "regression-device") { Parent = manager; Id = id; }
+        public string Id { get; }
         public string DisplayName => "Regression device";
         public string IconPath => null;
         public IAudioDeviceManager Parent { get; }
